@@ -23,14 +23,15 @@
  *
  * This sensor uses a subset of the PM1006K LED particle sensor
  * To use Tasmota the user needs to add an ESP8266 or ESP32
- * To update the tricolor light, user needs to proxy the PM_TX line with raw value corresponding
- * to the color wanted (0-35: Green / 36-85: Orange / 86-x: Red)
- * 
+ * To update the tricolor light, the user needs to proxy the PM_TX line with the ESP: RX is used
+ * to receive raw value from the PM sensor, TX is used to send manipulated data corresponding to
+ * the color wanted (0-35: Green / 36-85: Orange / 86-x: Red)
+ *
  * Console instruction supported:
- * 
+ *
  * Instruction              Returns                     Function
  * ------------------------------------------------------------------------------------
- * VindriktningColor 0..2   Corresponding PM value      Set tricolor light status (green, orangen red)
+ * VindriktningColor 0..2   Corresponding PM value      Set tricolor light status (green, orange, red)
 \*********************************************************************************************/
 
 #define XSNS_91                   91
@@ -72,7 +73,7 @@ struct VINDRIKTNING {
 #endif  // VINDRIKTNING_SHOW_PM10
   uint8_t type = 1;
   uint8_t valid = 0;
-  uint8_t color = VINDRIKTNING_COLOR_GREEN;
+  uint8_t color = VINDRIKTNING_COLOR_GREEN; // init with green color
   bool discovery_triggered = false;
 } Vindriktning;
 
@@ -88,14 +89,15 @@ bool VindriktningReadData(void) {
   }
 
   uint8_t buffer[VINDRIKTNING_DATASET_SIZE];
-  uint8_t bufferTx[VINDRIKTNING_DATASET_SIZE];
+  uint8_t pmValue;
 
   VindriktningSerial->readBytes(buffer, VINDRIKTNING_DATASET_SIZE);
-  memcpy(bufferTx, buffer, VINDRIKTNING_DATASET_SIZE);
-  bufferTx[6] = Vindriktning.color;
-  VindriktningSerial->write(bufferTx, VINDRIKTNING_DATASET_SIZE);
-  VindriktningSerial->flush();  // Make room for another burst
+  pmValue = buffer[6];            // store real PM value
+  buffer[6] = Vindriktning.color; // proxy the value to control Tricolor light
+  VindriktningSerial->write(buffer, VINDRIKTNING_DATASET_SIZE);
+  VindriktningSerial->flush();      // Make room for another burst
 
+  buffer[6] = pmValue;            // restore PM value for calculation
   AddLogBuffer(LOG_LEVEL_DEBUG_MORE, buffer, VINDRIKTNING_DATASET_SIZE);
 
   uint8_t crc = 0;
@@ -207,7 +209,7 @@ void CmndVindriktningColor(void) {
       Vindriktning.color = VINDRIKTNING_COLOR_RED;
     }
   }
-  ResponseCmndIdxNumber(Vindriktning.color); 
+  ResponseCmndIdxNumber(Vindriktning.color);
 }
 
 /*********************************************************************************************\

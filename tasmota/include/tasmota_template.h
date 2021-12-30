@@ -894,7 +894,7 @@ const uint16_t kGpioNiceList[] PROGMEM = {
   AGPIO(GPIO_PMS5003_RX),     // Plantower PMS5003 Serial interface
 #endif
 #ifdef USE_VINDRIKTNING
-  AGPIO(GPIO_VINDRIKTNING_RX), AGPIO(GPIO_VINDRIKTNINGR_TX),
+  AGPIO(GPIO_VINDRIKTNING_RX), AGPIO(GPIO_VINDRIKTNING_TX),
 #endif
 #ifdef USE_HM330X
   AGPIO(GPIO_HM330X_SET),     // HM330X Sleep pin (active low)

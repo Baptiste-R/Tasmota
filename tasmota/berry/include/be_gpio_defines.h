@@ -277,7 +277,7 @@ const be_const_member_t lv_gpio_constants[] = {
     { "TXD", (int32_t) GPIO_TXD },
     { "VINDRIKTNING_RX", (int32_t) GPIO_VINDRIKTNING_RX },
     { "VINDRIKTNING_TX", (int32_t) GPIO_VINDRIKTNING_TX },
-    { "VL53LXX_XSHUT1", (int32_t) GPIO_VL53LXX_XSHUT1 },
+    { "VL53L0X_XSHUT1", (int32_t) GPIO_VL53L0X_XSHUT1 },
     { "WE517_RX", (int32_t) GPIO_WE517_RX },
     { "WE517_TX", (int32_t) GPIO_WE517_TX },
     { "WEBCAM_DATA", (int32_t) GPIO_WEBCAM_DATA },
