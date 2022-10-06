@@ -23,6 +23,14 @@
  *
  * This sensor uses a subset of the PM1006K LED particle sensor
  * To use Tasmota the user needs to add an ESP8266 or ESP32
+ * To update the tricolor light, user needs to proxy the PM_TX line with raw value corresponding
+ * to the color wanted (0-35: Green / 36-85: Orange / 86-x: Red)
+ * 
+ * Console instruction supported:
+ * 
+ * Instruction              Returns                     Function
+ * ------------------------------------------------------------------------------------
+ * VindriktningColor 0..2   Corresponding PM value      Set tricolor light status (green, orangen red)
 \*********************************************************************************************/
 
 #define XSNS_91                   91
@@ -33,6 +41,24 @@
 #include <TasmotaSerial.h>
 
 #define VINDRIKTNING_DATASET_SIZE 20
+
+#define VINDRIKTNING_CMD_GREEN    0
+#define VINDRIKTNING_CMD_ORANGE   1
+#define VINDRIKTNING_CMD_RED      2
+
+#define VINDRIKTNING_COLOR_GREEN  20
+#define VINDRIKTNING_COLOR_ORANGE 60
+#define VINDRIKTNING_COLOR_RED    100
+
+
+#define D_PRFX_VINDRIKTNING "Vindriktning"
+#define D_CMND_COLOR "Color"
+
+const char kVindriktningCommands[] PROGMEM = D_PRFX_VINDRIKTNING "|"  // Prefix
+  D_CMND_COLOR;
+
+void (* const VindriktningCommand[])(void) PROGMEM = {
+  &CmndVindriktningColor };
 
 TasmotaSerial *VindriktningSerial;
 
@@ -46,6 +72,7 @@ struct VINDRIKTNING {
 #endif  // VINDRIKTNING_SHOW_PM10
   uint8_t type = 1;
   uint8_t valid = 0;
+  uint8_t color = VINDRIKTNING_COLOR_GREEN;
   bool discovery_triggered = false;
 } Vindriktning;
 
@@ -61,7 +88,12 @@ bool VindriktningReadData(void) {
   }
 
   uint8_t buffer[VINDRIKTNING_DATASET_SIZE];
+  uint8_t bufferTx[VINDRIKTNING_DATASET_SIZE];
+
   VindriktningSerial->readBytes(buffer, VINDRIKTNING_DATASET_SIZE);
+  memcpy(bufferTx, buffer, VINDRIKTNING_DATASET_SIZE);
+  bufferTx[6] = Vindriktning.color;
+  VindriktningSerial->write(bufferTx, VINDRIKTNING_DATASET_SIZE);
   VindriktningSerial->flush();  // Make room for another burst
 
   AddLogBuffer(LOG_LEVEL_DEBUG_MORE, buffer, VINDRIKTNING_DATASET_SIZE);
@@ -110,8 +142,8 @@ void VindriktningSecond(void) {                // Every second
 
 void VindriktningInit(void) {
   Vindriktning.type = 0;
-  if (PinUsed(GPIO_VINDRIKTNING_RX)) {
-    VindriktningSerial = new TasmotaSerial(Pin(GPIO_VINDRIKTNING_RX), -1, 1);
+  if (PinUsed(GPIO_VINDRIKTNING_RX) && PinUsed(GPIO_VINDRIKTNING_TX)) {
+    VindriktningSerial = new TasmotaSerial(Pin(GPIO_VINDRIKTNING_RX), Pin(GPIO_VINDRIKTNING_TX), 1);
     if (VindriktningSerial->begin(9600)) {
       if (VindriktningSerial->hardwareSerial()) { ClaimSerial(); }
       Vindriktning.type = 1;
@@ -162,6 +194,23 @@ void VindriktningShow(bool json) {
 }
 
 /*********************************************************************************************\
+ * Commands
+\*********************************************************************************************/
+
+void CmndVindriktningColor(void) {
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 2)) {
+    if (XdrvMailbox.payload == VINDRIKTNING_CMD_GREEN) {
+      Vindriktning.color = VINDRIKTNING_COLOR_GREEN;
+    } else if (XdrvMailbox.payload == VINDRIKTNING_CMD_ORANGE) {
+      Vindriktning.color = VINDRIKTNING_COLOR_ORANGE;
+    } else if (XdrvMailbox.payload == VINDRIKTNING_CMD_RED) {
+      Vindriktning.color = VINDRIKTNING_COLOR_RED;
+    }
+  }
+  ResponseCmndIdxNumber(Vindriktning.color); 
+}
+
+/*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
 
@@ -172,6 +221,9 @@ bool Xsns91(uint8_t function) {
     switch (function) {
       case FUNC_EVERY_SECOND:
         VindriktningSecond();
+        break;
+      case FUNC_COMMAND:
+        result = DecodeCommand(kVindriktningCommands, VindriktningCommand);
         break;
       case FUNC_JSON_APPEND:
         VindriktningShow(1);
